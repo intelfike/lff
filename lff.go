@@ -18,6 +18,7 @@ var (
 	file     *regexps.RegSet
 	line     *regexps.RegSet
 	spaceReg = regexp.MustCompile("\\s+")
+	hf       = flag.Bool("h", false, "display help")
 	ff       = flag.Bool("f", false, "full path")
 	df       = flag.Bool("d", false, "directory")
 	nf       = flag.Bool("n", false, "line number")
@@ -42,6 +43,30 @@ func init() {
 skip(s) -> skip file.
 exit(e) -> end.
 `)
+	}
+	if *hf {
+		fmt.Println(`This command is searching dire/file/line tool.
+
+
+  Usage
+
+ lff (-cd [directory path]|-d|-f|-n|-s) [Directory regexp] [File regexp] [Line regexp]
+
+
+  Examples
+
+ lff "" \.go$ => Search only current direcotry.
+ lff . \.go$ => Recursive search directory.
+
+ lff . \.go$ "func\smain" => Search "func main".
+ lff . \.go$ "func main" => Line contains both "func" and "main".
+ lff . \.go$ "func \!main" => Line contains "func". But never contains "main".
+
+
+  Flags
+`)
+		flag.PrintDefaults()
+		os.Exit(1)
 	}
 }
 func distrComp(s []string) ([]string, []string) {

@@ -7,9 +7,6 @@
 ## Usage
 
 ```
-This command is searching dire/file/line tool.
-
-
   Usage
 
  lff (-cd [directory path]|-d|-f|-n|-s) [Directory regexp] [File regexp] [Line regexp]
@@ -17,11 +14,13 @@ This command is searching dire/file/line tool.
 
   Examples
 
- lff "" \.go$ => Search only current direcotry.
- lff . \.go$ => Recursive search directory.
+ lff => Display files from current directory.
+ lff . => Display files from directory recursive.
+ lff "" \.go$ => Search files from only current direcotry.
+ lff . \.go$ => Recursive search files from all directory.
 
  lff . \.go$ "func\smain" => Search "func main".
- lff . \.go$ "func main" => Line contains both "func" and "main".
+ lff . \.go$ "func main" => Line contains both of "func" and "main".
  lff . \.go$ "func \!main" => Line contains "func". But never contains "main".
 
 

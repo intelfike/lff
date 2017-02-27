@@ -6,8 +6,25 @@ import (
 )
 
 type RegSet struct {
-	OK []*regexp.Regexp
-	NG []*regexp.Regexp
+	OK          []*regexp.Regexp
+	NG          []*regexp.Regexp
+	hightLights *regexp.Regexp
+}
+
+func New(ok, ng []string) *RegSet {
+	rs := new(RegSet)
+	rs.OK = AllCompile(ok)
+	rs.NG = AllCompile(ng)
+	ss := make([]string, 0, len(rs.OK))
+	for _, reg := range rs.OK {
+		if reg.String() == "." {
+			continue
+		}
+		ss = append(ss, reg.String())
+	}
+	s := strings.Join(ss, "|")
+	rs.hightLights = regexp.MustCompile("(" + s + ")")
+	return rs
 }
 
 func AllCompile(ss []string) []*regexp.Regexp {
@@ -46,17 +63,10 @@ func (rs *RegSet) MatchAll(str string) bool {
 	}
 	return true
 }
+
 func (rs *RegSet) IsEmpty() bool {
 	return len(rs.OK) == 0 && len(rs.NG) == 0
 }
 func (rs *RegSet) OKHightLight(text string) string {
-	ss := make([]string, len(rs.OK))
-	for _, reg := range rs.OK {
-		ss = append(ss, reg.String())
-
-	}
-	s := strings.Join(ss, "|")
-	reg := regexp.MustCompile("(" + s + ")")
-	str := reg.ReplaceAllString(v.Str, "\x1b[31m$1\x1b[m")
-	return reg.ReplaceAllString(text, "[$1]")
+	return rs.hightLights.ReplaceAllString(text, "\x1b[31m$1\x1b[m")
 }

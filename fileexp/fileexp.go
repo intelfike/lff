@@ -2,7 +2,6 @@ package fileexp
 
 import (
 	"bufio"
-	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -12,7 +11,7 @@ import (
 type FileDir struct {
 	Dir    string
 	Info   os.FileInfo
-	Reader io.Reader
+	Reader *os.File
 }
 
 func ReadDirAll(dir string, bufsize int) (chan FileDir, error) {
@@ -28,8 +27,7 @@ func ReadDirAll(dir string, bufsize int) (chan FileDir, error) {
 func recReadDir(dir string, ch chan FileDir, depth int) {
 	Infos, _ := ioutil.ReadDir(dir)
 	for _, v := range Infos {
-		r, _ := os.Open(dir + "/" + v.Name())
-		ch <- FileDir{Dir: dir, Info: v, Reader: r}
+		ch <- FileDir{Dir: dir, Info: v}
 		if v.IsDir() {
 			recReadDir(dir+"/"+v.Name(), ch, depth+1)
 		}
@@ -47,8 +45,7 @@ func ReadDir(dir string, bufsize int) (chan FileDir, error) {
 	ch := make(chan FileDir, bufsize)
 	go func() {
 		for _, v := range d {
-			r, _ := os.Open(dir + "/" + v.Name())
-			ch <- FileDir{Dir: dir, Info: v, Reader: r}
+			ch <- FileDir{Dir: dir, Info: v}
 		}
 		close(ch)
 	}()
@@ -72,6 +69,13 @@ type Line struct {
 	Num int
 }
 
+func (fd *FileDir) Open() {
+	r, _ := os.Open(fd.Path())
+	fd.Reader = r
+}
+func (fd *FileDir) Close() {
+	fd.Reader.Close()
+}
 func (fd *FileDir) ReadChan(bufsize, linelength int) chan Line {
 	ch := make(chan Line, bufsize)
 	go func() {

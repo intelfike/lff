@@ -55,11 +55,13 @@ exit(e) -> end.
 
   Examples
 
- lff "" \.go$ => Search only current direcotry.
- lff . \.go$ => Recursive search directory.
+ lff => Display files from current directory.
+ lff . => Display files from directory recursive.
+ lff "" \.go$ => Search files from only current direcotry.
+ lff . \.go$ => Recursive search files from all directory.
 
  lff . \.go$ "func\smain" => Search "func main".
- lff . \.go$ "func main" => Line contains both "func" and "main".
+ lff . \.go$ "func main" => Line contains both of "func" and "main".
  lff . \.go$ "func \!main" => Line contains "func". But never contains "main".
 
 
@@ -89,7 +91,7 @@ func distrComp(s []string) ([]string, []string) {
 }
 
 func main() {
-	dir := make(chan fileexp.FileDir)
+	var dir chan fileexp.FileDir
 	var err error
 	if dire.IsEmpty() {
 		dir, err = fileexp.ReadDir(*cd, 1024)
@@ -130,6 +132,7 @@ func main() {
 		if line.IsEmpty() {
 			fmt.Println(disppath)
 		} else {
+			fd.Open()
 			filetext := ""
 			for v := range fd.ReadChan(1024, 100) {
 				if !line.MatchAll(v.Str) {
@@ -141,6 +144,7 @@ func main() {
 
 				filetext += line.OKHightLight(v.Str) + "\n"
 			}
+			fd.Close()
 			if len(filetext) != 0 {
 				fmt.Print("[", disppath, "]")
 				if *sf {

@@ -35,5 +35,32 @@
   -s	display file with stop
 ```
 
+## Sample
+
+```
+~$ lff -cd $GOROOT/src . go$ "func\sDial\("
+[./crypto/tls/tls.go]
+func Dial(network, addr string, config *Config) (*Conn, error) {
+
+[./log/syslog/syslog.go]
+func Dial(network, raddr string, priority Priority, tag string) (*Writer, error) {
+
+[./net/dial.go]
+func Dial(network, address string) (Conn, error) {
+
+[./net/rpc/client.go]
+func Dial(network, address string) (*Client, error) {
+
+[./net/rpc/jsonrpc/client.go]
+func Dial(network, address string) (*rpc.Client, error) {
+
+[./net/smtp/smtp.go]
+func Dial(addr string) (*Client, error) {
+
+[./net/textproto/textproto.go]
+func Dial(network, addr string) (*Conn, error) {
+
+```
+
 ## License
 MIT

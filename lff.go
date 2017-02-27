@@ -127,7 +127,7 @@ func main() {
 			fp = fd.Rel(*cd)
 		}
 		directory, filename := filepath.Split(fp)
-		disppath := *cd + "/" + directory + file.OKHightLight(filename)
+		disppath := "./" + directory + file.OKHightLight(filename)
 
 		if line.IsEmpty() {
 			fmt.Println(disppath)

@@ -99,6 +99,7 @@ func distrComp(s []string) ([]string, []string) {
 }
 
 func main() {
+	defer fmt.Println("\x1b[m")
 	f := wtof.New(ansicolor.NewAnsiColorWriter(os.Stdout))
 	defer f.Close()
 	os.Stdout = f.File

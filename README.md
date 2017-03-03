@@ -27,12 +27,14 @@
   Flags
 
   -cd string
-    	change directory (default ".")
-  -d	directory
-  -f	full path
-  -h	display help
-  -n	line number
-  -s	display file with stop
+      change directory (default ".")
+  -d  directory
+  -f  full path
+  -h  display help
+  -n  line number
+  -o  open file. (y/[Enter])
+  -s  display file with stop
+
 ```
 
 ## Sample

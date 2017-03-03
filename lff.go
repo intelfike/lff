@@ -8,9 +8,11 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/intelfike/lff/fileexp"
 	"github.com/intelfike/lff/regexps"
+	"github.com/skratchdot/open-golang/open"
 )
 
 var (
@@ -23,8 +25,10 @@ var (
 	df       = flag.Bool("d", false, "directory")
 	nf       = flag.Bool("n", false, "line number")
 	sf       = flag.Bool("s", false, "display file with stop")
+	op       = flag.Bool("o", false, "open file. (y/[Enter])")
 	cd       = flag.String("cd", ".", "change directory")
 	arglen   int
+	wg       sync.WaitGroup
 )
 
 func init() {
@@ -50,7 +54,7 @@ exit(e) -> end.
 
   Usage
 
- lff (-cd [directory path]|-d|-f|-n|-s) [Directory regexp] [File regexp] [Line regexp]
+ lff (-cd [directory path]|-d|-f|-n|-s|-o) [Directory regexp] [File regexp] [Line regexp]
 
 
   Examples
@@ -91,6 +95,10 @@ func distrComp(s []string) ([]string, []string) {
 }
 
 func main() {
+	ch := make(chan string, 1024)
+	if !line.IsEmpty() {
+		go lineDisper(ch)
+	}
 	var dir chan fileexp.FileDir
 	var err error
 	if dire.IsEmpty() {
@@ -124,10 +132,10 @@ func main() {
 
 		fp := fd.Abs()
 		if !*ff {
-			fp = fd.Rel(*cd)
+			fp = "./" + fd.Rel(*cd)
 		}
 		directory, filename := filepath.Split(fp)
-		disppath := "./" + directory + file.OKHightLight(filename)
+		disppath := directory + file.OKHightLight(filename)
 
 		if line.IsEmpty() {
 			fmt.Println(disppath)
@@ -146,23 +154,53 @@ func main() {
 			}
 			fd.Close()
 			if len(filetext) != 0 {
-				fmt.Print("[", disppath, "]")
-				if *sf {
-					s := ""
-					fmt.Scanln(&s)
-					switch s {
-					case "e", "exit":
-						os.Exit(1)
-					case "a", "all":
-						*sf = false
-					case "s", "skip":
-						continue
-					}
-				} else {
-					fmt.Println()
-				}
-				fmt.Println(filetext)
+				wg.Add(1)
+				ch <- disppath
+				ch <- filetext
 			}
 		}
+	}
+	wg.Wait()
+}
+
+func lineDisper(ch chan string) {
+	for {
+		lineDisperLoop(ch)
+		wg.Done()
+	}
+}
+
+func lineDisperLoop(ch chan string) {
+	filename := <-ch
+	fmt.Print("[", filename, "]")
+	filetext := <-ch
+	if *sf {
+		s := ""
+		fmt.Scanln(&s)
+		switch s {
+		case "e", "exit":
+			os.Exit(1)
+		case "a", "all":
+			*sf = false
+		case "s", "skip":
+			// wg.Done()
+			return
+		}
+	} else {
+		fmt.Println()
+	}
+	fmt.Println(filetext)
+	if *op && *sf {
+		fmt.Print("Open file?(y/)")
+		yn := ""
+		fmt.Scanln(&yn)
+		if yn != "y" {
+			fmt.Println()
+			return
+		}
+		filename = strings.Replace(filename, "\x1b[31m", "", -1)
+		filename = strings.Replace(filename, "\x1b[m", "", -1)
+
+		fmt.Println(open.Run(filename))
 	}
 }

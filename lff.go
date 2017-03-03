@@ -12,6 +12,8 @@ import (
 
 	"github.com/intelfike/lff/fileexp"
 	"github.com/intelfike/lff/regexps"
+	"github.com/intelfike/wtof"
+	"github.com/shiena/ansicolor"
 	"github.com/skratchdot/open-golang/open"
 )
 
@@ -32,6 +34,8 @@ var (
 )
 
 func init() {
+	// w := ansicolor.NewAnsiColorWriter(os.Stdout)
+
 	flag.Parse()
 	arglen = len(flag.Args())
 	direlist := spaceReg.Split(flag.Arg(0), -1)
@@ -95,6 +99,10 @@ func distrComp(s []string) ([]string, []string) {
 }
 
 func main() {
+	f := wtof.New(ansicolor.NewAnsiColorWriter(os.Stdout))
+	defer f.Close()
+	os.Stdout = f.File
+
 	ch := make(chan string, 1024)
 	if !line.IsEmpty() {
 		go lineDisper(ch)

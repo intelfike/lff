@@ -68,5 +68,10 @@ func (rs *RegSet) IsEmpty() bool {
 	return len(rs.OK) == 0 && len(rs.NG) == 0
 }
 func (rs *RegSet) OKHightLight(text string) string {
-	return rs.hightLights.ReplaceAllString(text, "\x1b[31m$1\x1b[m")
+	if rs.hightLights.String() == "()" {
+		return text
+	}
+	rv := rs.hightLights.ReplaceAllString(text, "\x1b[31m$1\x1b[m")
+	rv = strings.Replace(rv, "\x1b[m\x1b[31m", "", -1)
+	return rv
 }

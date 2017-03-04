@@ -9,7 +9,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/intelfike/lff/fileexp"
 	"github.com/intelfike/lff/regexps"
@@ -31,13 +30,15 @@ var (
 	op       = flag.Bool("o", false, "open file. (y/[Enter])")
 	cd       = flag.String("cd", ".", "change directory")
 	arglen   int
-	wg       sync.WaitGroup
 )
 
 func init() {
-	// w := ansicolor.NewAnsiColorWriter(os.Stdout)
-
 	flag.Parse()
+
+	// カレントディレクトリ変更
+	os.Chdir(*cd)
+
+	// コマンドライン引数の正規表現を入力
 	arglen = len(flag.Args())
 	direlist := spaceReg.Split(flag.Arg(0), -1)
 	filelist := spaceReg.Split(flag.Arg(1), -1)
@@ -45,6 +46,8 @@ func init() {
 	dire = regexps.New(distrComp(direlist))
 	file = regexps.New(distrComp(filelist))
 	line = regexps.New(distrComp(linelist))
+
+	*sf = *sf || *op
 
 	if *sf {
 		fmt.Println(
@@ -80,6 +83,8 @@ exit(e) -> end.
 		os.Exit(1)
 	}
 }
+
+// \!から始まる文字を否定、そうでなければ肯定として受ける
 func distrComp(s []string) ([]string, []string) {
 	ok := []string{}
 	ng := []string{}
@@ -100,27 +105,72 @@ func distrComp(s []string) ([]string, []string) {
 }
 
 func main() {
-	defer fmt.Println("\x1b[m")
 	if runtime.GOOS == "windows" {
 		f := wtof.New(ansicolor.NewAnsiColorWriter(os.Stdout), 1)
 		defer f.Close()
 		os.Stdout = f.File
 	}
+	defer fmt.Print("\x1b[m")
 
+	// 表示と探索の同期
 	ch := make(chan string, 1024)
-	if !line.IsEmpty() {
-		go lineDisper(ch)
+
+	// ファイル探索
+	go run(ch)
+
+	// 表示用
+	for filename := range ch {
+		d, f := filepath.Split(filename)
+		fmt.Print(d + file.OKHightLight(f))
+		filetext := <-ch
+		if len(filetext) == 0 {
+			continue
+		}
+		if *sf {
+			s := ""
+			fmt.Scanln(&s)
+			switch s {
+			case "e", "exit":
+				os.Exit(1)
+			case "a", "all":
+				*sf = false
+			case "s", "skip":
+				filetext = ""
+			}
+		} else {
+			fmt.Println()
+		}
+		fmt.Print(filetext)
+		// fmt.Println()
+
+		// 表示時に開ける-oフラグ
+		if *op && *sf {
+			fmt.Print("Open?(y/)")
+			yn := ""
+			fmt.Scanln(&yn)
+			if yn == "y" {
+				err := open.Run(filename[1 : len(filename)-1])
+				if err != nil {
+					fmt.Println(err)
+				}
+			}
+		}
+		fmt.Println()
 	}
+}
+
+func run(ch chan string) {
+	defer close(ch)
 	var dir chan fileexp.FileDir
 	var err error
 	if dire.IsEmpty() {
-		dir, err = fileexp.ReadDir(*cd, 1024)
+		dir, err = fileexp.ReadDir(".", 1024)
 	} else {
-		dir, err = fileexp.ReadDirAll(*cd, 1024)
+		dir, err = fileexp.ReadDirAll(".", 1024)
 	}
 	if err != nil {
 		fmt.Println(err)
-		return
+		os.Exit(1)
 	}
 	for fd := range dir {
 		// disp dir or file.
@@ -144,13 +194,14 @@ func main() {
 
 		fp := fd.Abs()
 		if !*ff {
-			fp = "./" + fd.Rel(*cd)
+			fp = fd.Rel(".")
 		}
-		directory, filename := filepath.Split(fp)
-		disppath := directory + file.OKHightLight(filename)
+		// directory, filename := filepath.Split(fp)
+		// disppath := directory + file.OKHightLight(filename)
 
 		if line.IsEmpty() {
-			fmt.Println(disppath)
+			ch <- fp + "\n"
+			ch <- ""
 		} else {
 			fd.Open()
 			filetext := ""
@@ -165,53 +216,8 @@ func main() {
 				filetext += line.OKHightLight(v.Str) + "\n"
 			}
 			fd.Close()
-			if len(filetext) != 0 {
-				wg.Add(1)
-				ch <- disppath
-				ch <- filetext
-			}
+			ch <- "[" + fp + "]"
+			ch <- filetext
 		}
-	}
-	wg.Wait()
-}
-
-func lineDisper(ch chan string) {
-	for {
-		lineDisperLoop(ch)
-		wg.Done()
-	}
-}
-
-func lineDisperLoop(ch chan string) {
-	filename := <-ch
-	fmt.Print("[", filename, "]")
-	filetext := <-ch
-	if *sf {
-		s := ""
-		fmt.Scanln(&s)
-		switch s {
-		case "e", "exit":
-			os.Exit(1)
-		case "a", "all":
-			*sf = false
-		case "s", "skip":
-			return
-		}
-	} else {
-		fmt.Println()
-	}
-	fmt.Println(filetext)
-	if *op && *sf {
-		fmt.Print("Open file?(y/)")
-		yn := ""
-		fmt.Scanln(&yn)
-		if yn != "y" {
-			fmt.Println()
-			return
-		}
-		filename = strings.Replace(filename, "\x1b[31m", "", -1)
-		filename = strings.Replace(filename, "\x1b[m", "", -1)
-
-		fmt.Println(open.Run(filename))
 	}
 }

@@ -29,7 +29,7 @@ func recReadDir(dir string, ch chan FileDir, depth int) {
 	for _, v := range Infos {
 		ch <- FileDir{Dir: dir, Info: v}
 		if v.IsDir() {
-			recReadDir(dir+"/"+v.Name(), ch, depth+1)
+			recReadDir(filepath.Join(dir, v.Name()), ch, depth+1)
 		}
 	}
 	if depth == 0 {
@@ -61,7 +61,7 @@ func (fd *FileDir) Rel(curd string) string {
 	return f
 }
 func (fd *FileDir) Path() string {
-	return fd.Dir + "/" + fd.Info.Name()
+	return filepath.Join(fd.Dir, fd.Info.Name())
 }
 
 type Line struct {

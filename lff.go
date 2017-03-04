@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -100,9 +101,11 @@ func distrComp(s []string) ([]string, []string) {
 
 func main() {
 	defer fmt.Println("\x1b[m")
-	f := wtof.New(ansicolor.NewAnsiColorWriter(os.Stdout))
-	defer f.Close()
-	os.Stdout = f.File
+	if runtime.GOOS == "windows" {
+		f := wtof.New(ansicolor.NewAnsiColorWriter(os.Stdout), 1)
+		defer f.Close()
+		os.Stdout = f.File
+	}
 
 	ch := make(chan string, 1024)
 	if !line.IsEmpty() {
@@ -192,7 +195,6 @@ func lineDisperLoop(ch chan string) {
 		case "a", "all":
 			*sf = false
 		case "s", "skip":
-			// wg.Done()
 			return
 		}
 	} else {

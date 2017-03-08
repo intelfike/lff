@@ -121,11 +121,11 @@ func main() {
 	// 表示用
 	for filename := range ch {
 		d, f := filepath.Split(filename)
-		fmt.Print(d + file.OKHightLight(f))
 		filetext := <-ch
 		if len(filetext) == 0 {
 			continue
 		}
+		fmt.Print(d + file.OKHightLight(f))
 		if *sf {
 			s := ""
 			fmt.Scanln(&s)

@@ -30,6 +30,7 @@ var (
 	op       = flag.Bool("o", false, "open file. (y/[Enter])")
 	cd       = flag.String("cd", ".", "change directory")
 	arglen   int
+	okline   bool
 )
 
 func init() {
@@ -46,6 +47,7 @@ func init() {
 	dire = regexps.New(distrComp(direlist))
 	file = regexps.New(distrComp(filelist))
 	line = regexps.New(distrComp(linelist))
+	okline = !line.IsEmpty()
 
 	*sf = *sf || *op
 
@@ -120,12 +122,15 @@ func main() {
 
 	// 表示用
 	for filename := range ch {
-		d, f := filepath.Split(filename)
 		filetext := <-ch
-		if len(filetext) == 0 {
+		if okline && len(filetext) == 0 {
 			continue
 		}
+		d, f := filepath.Split(filename)
 		fmt.Print(d + file.OKHightLight(f))
+		if !okline {
+			continue
+		}
 		if *sf {
 			s := ""
 			fmt.Scanln(&s)
@@ -199,7 +204,7 @@ func run(ch chan string) {
 		// directory, filename := filepath.Split(fp)
 		// disppath := directory + file.OKHightLight(filename)
 
-		if line.IsEmpty() {
+		if !okline {
 			ch <- fp + "\n"
 			ch <- ""
 		} else {

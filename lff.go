@@ -127,9 +127,11 @@ func main() {
 			continue
 		}
 		d, f := filepath.Split(filename)
-		fmt.Print(d + file.OKHightLight(f))
 		if !okline {
+			fmt.Println(d + file.OKHightLight(f))
 			continue
+		} else {
+			fmt.Print("[" + d + file.OKHightLight(f) + "]")
 		}
 		if *sf {
 			s := ""
@@ -205,7 +207,7 @@ func run(ch chan string) {
 		// disppath := directory + file.OKHightLight(filename)
 
 		if !okline {
-			ch <- fp + "\n"
+			ch <- fp
 			ch <- ""
 		} else {
 			fd.Open()
@@ -221,7 +223,7 @@ func run(ch chan string) {
 				filetext += line.OKHightLight(v.Str) + "\n"
 			}
 			fd.Close()
-			ch <- "[" + fp + "]"
+			ch <- fp
 			ch <- filetext
 		}
 	}

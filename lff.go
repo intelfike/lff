@@ -218,12 +218,12 @@ func run(ch chan string) {
 		if !*ff {
 			fp = fd.Rel(".")
 		}
-		// directory, filename := filepath.Split(fp)
-		// disppath := directory + file.OKHightLight(filename)
 
 		if !okline {
 			ch <- fp
-			ch <- ""
+			if !*okjson {
+				ch <- ""
+			}
 		} else {
 			fd.Open()
 			filetext := ""

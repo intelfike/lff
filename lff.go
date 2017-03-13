@@ -66,8 +66,9 @@ exit(e) -> end.
 
   Usage
 
- lff (-cd [directory path]|-d|-f|-n|-s|-o|-json) [Directory regexp] [File regexp] [Line regexp]
+ lff [Options] [Directory regexp] [File regexp] [Line regexp]
 
+ Options = (-cd "directory path"|-d|-f|-n|-s|-o|-json|-indent "indent")
 
   Examples
 
@@ -126,14 +127,12 @@ func main() {
 	if *okjson {
 		jb.Indent = *indent
 		for filename := range ch {
-			if !okline {
-				d, f := filepath.Split(filename)
-				d = strings.Trim(d, "/\\")
-				if len(d) == 0 {
-					d = "."
-				}
-				jb.ChildPath(d).Push().Value(f)
+			d, f := filepath.Split(filename)
+			d = strings.Trim(d, "/\\")
+			if len(d) == 0 {
+				d = "."
 			}
+			jb.ChildPath(d).Push().Value(f)
 		}
 		fmt.Print(jb)
 	} else {
@@ -246,8 +245,8 @@ func run(ch chan string) {
 				}
 			}
 			fd.Close()
-			ch <- fp
 			if !*okjson {
+				ch <- fp
 				ch <- filetext
 			}
 		}

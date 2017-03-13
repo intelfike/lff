@@ -31,6 +31,7 @@ var (
 	op       = flag.Bool("o", false, "open file. (y/[Enter])")
 	cd       = flag.String("cd", ".", "change directory")
 	okjson   = flag.Bool("json", false, "display json")
+	indent   = flag.String("indent", "", "json indent")
 	okline   bool
 	jb       = jsonbase.New()
 )
@@ -123,7 +124,7 @@ func main() {
 
 	// 表示用
 	if *okjson {
-		jb.Indent = "  "
+		jb.Indent = *indent
 		for filename := range ch {
 			if !okline {
 				d, f := filepath.Split(filename)

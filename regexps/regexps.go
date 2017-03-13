@@ -67,6 +67,9 @@ func (rs *RegSet) MatchAll(str string) bool {
 func (rs *RegSet) IsEmpty() bool {
 	return len(rs.OK) == 0 && len(rs.NG) == 0
 }
+func (rs *RegSet) IsAcceptAll() bool {
+	return rs.hightLights.String() == "()"
+}
 func (rs *RegSet) OKHightLight(text string) string {
 	if rs.hightLights.String() == "()" {
 		return text

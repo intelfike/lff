@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/intelfike/jsonbase"
 	"github.com/intelfike/lff/fileexp"
 	"github.com/intelfike/lff/regexps"
 	"github.com/intelfike/wtof"
@@ -29,8 +30,9 @@ var (
 	sf       = flag.Bool("s", false, "display file with stop")
 	op       = flag.Bool("o", false, "open file. (y/[Enter])")
 	cd       = flag.String("cd", ".", "change directory")
-	arglen   int
+	okjson   = flag.Bool("json", false, "display json")
 	okline   bool
+	jb       = jsonbase.New()
 )
 
 func init() {
@@ -40,7 +42,6 @@ func init() {
 	os.Chdir(*cd)
 
 	// コマンドライン引数の正規表現を入力
-	arglen = len(flag.Args())
 	direlist := spaceReg.Split(flag.Arg(0), -1)
 	filelist := spaceReg.Split(flag.Arg(1), -1)
 	linelist := spaceReg.Split(flag.Arg(2), -1)
@@ -64,7 +65,7 @@ exit(e) -> end.
 
   Usage
 
- lff (-cd [directory path]|-d|-f|-n|-s|-o) [Directory regexp] [File regexp] [Line regexp]
+ lff (-cd [directory path]|-d|-f|-n|-s|-o|-json) [Directory regexp] [File regexp] [Line regexp]
 
 
   Examples
@@ -121,48 +122,61 @@ func main() {
 	go run(ch)
 
 	// 表示用
-	for filename := range ch {
-		filetext := <-ch
-		if okline && len(filetext) == 0 {
-			continue
-		}
-		d, f := filepath.Split(filename)
-		if !okline {
-			fmt.Println(d + file.OKHightLight(f))
-			continue
-		} else {
-			fmt.Print("[" + d + file.OKHightLight(f) + "]")
-		}
-		if *sf {
-			s := ""
-			fmt.Scanln(&s)
-			switch s {
-			case "e", "exit":
-				os.Exit(1)
-			case "a", "all":
-				*sf = false
-			case "s", "skip":
-				filetext = ""
+	if *okjson {
+		jb.Indent = "  "
+		for filename := range ch {
+			if !okline {
+				d, f := filepath.Split(filename)
+				d = strings.Trim(d, "/\\")
+				if len(d) == 0 {
+					d = "."
+				}
+				jb.ChildPath(d).Push().Value(f)
 			}
-		} else {
-			fmt.Println()
 		}
-		fmt.Print(filetext)
-		// fmt.Println()
+		fmt.Print(jb)
+	} else {
+		for filename := range ch {
+			filetext := <-ch
+			if okline && len(filetext) == 0 {
+				continue
+			}
+			d, f := filepath.Split(filename)
+			if !okline {
+				fmt.Println(d + file.OKHightLight(f))
+				continue
+			}
+			fmt.Print("[" + d + file.OKHightLight(f) + "]")
+			if *sf {
+				s := ""
+				fmt.Scanln(&s)
+				switch s {
+				case "e", "exit":
+					os.Exit(1)
+				case "a", "all":
+					*sf = false
+				case "s", "skip":
+					filetext = ""
+				}
+			} else {
+				fmt.Println()
+			}
+			fmt.Print(filetext)
 
-		// 表示時に開ける-oフラグ
-		if *op && *sf {
-			fmt.Print("Open?(y/)")
-			yn := ""
-			fmt.Scanln(&yn)
-			if yn == "y" {
-				err := open.Run(filename[1 : len(filename)-1])
-				if err != nil {
-					fmt.Println(err)
+			// 表示時に開ける-oフラグ
+			if *op && *sf {
+				fmt.Print("Open?(y/)")
+				yn := ""
+				fmt.Scanln(&yn)
+				if yn == "y" {
+					err := open.Run(filename[1 : len(filename)-1])
+					if err != nil {
+						fmt.Println(err)
+					}
 				}
 			}
+			fmt.Println()
 		}
-		fmt.Println()
 	}
 }
 
@@ -216,15 +230,25 @@ func run(ch chan string) {
 				if !line.MatchAll(v.Str) {
 					continue
 				}
-				if *nf {
-					filetext += strconv.Itoa(v.Num) + " "
-				}
 
-				filetext += line.OKHightLight(v.Str) + "\n"
+				if *okjson {
+					if *nf {
+						jb.ChildPath(fp).Push().Printf(`{"Num":%d,"Text":"%s"}`, v.Num, v.Str)
+					} else {
+						jb.ChildPath(fp).Push().Value(v.Str)
+					}
+				} else {
+					if *nf {
+						filetext += strconv.Itoa(v.Num) + " "
+					}
+					filetext += line.OKHightLight(v.Str) + "\n"
+				}
 			}
 			fd.Close()
 			ch <- fp
-			ch <- filetext
+			if !*okjson {
+				ch <- filetext
+			}
 		}
 	}
 }

@@ -9,8 +9,9 @@
 ```
   Usage
 
- lff (-cd [directory path]|-d|-f|-n|-s|-o|-json) [Directory regexp] [File regexp] [Line regexp]
+ lff [Options] [Directory regexp] [File regexp] [Line regexp]
 
+ Options = (-cd "directory path"|-d|-f|-n|-s|-o|-json|-indent "indent")
 
   Examples
 

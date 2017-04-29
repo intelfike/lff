@@ -1,4 +1,4 @@
-# lff command
+# lff comm:and
 
 ## install
 

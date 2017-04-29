@@ -40,7 +40,10 @@ func init() {
 	flag.Parse()
 
 	// カレントディレクトリ変更
-	os.Chdir(*cd)
+	err := os.Chdir(*cd)
+	if err != nil {
+		fmt.Println("-cd [path] path is not found.")
+	}
 
 	// コマンドライン引数の正規表現を入力
 	direlist := spaceReg.Split(flag.Arg(0), -1)
@@ -111,7 +114,8 @@ func distrComp(s []string) ([]string, []string) {
 
 func main() {
 	if runtime.GOOS == "windows" {
-		f := wtof.New(ansicolor.NewAnsiColorWriter(os.Stdout), 1)
+		// Buffer size = 100KB
+		f := wtof.New(ansicolor.NewAnsiColorWriter(os.Stdout), 100000)
 		defer f.Close()
 		os.Stdout = f.File
 	}
@@ -169,7 +173,7 @@ func main() {
 				yn := ""
 				fmt.Scanln(&yn)
 				if yn == "y" {
-					err := open.Run(filename[1 : len(filename)-1])
+					err := open.Run(filename)
 					if err != nil {
 						fmt.Println(err)
 					}

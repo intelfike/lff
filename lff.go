@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bufio"
+	"errors"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -228,31 +231,82 @@ func run(ch chan string) {
 				ch <- ""
 			}
 		} else {
-			fd.Open()
+			r, err := os.Open(fd.Path())
+			if err != nil {
+				log.Fatal(err)
+			}
+			defer r.Close()
+			br := bufio.NewReader(r)
 			filetext := ""
-			for v := range fd.ReadChan(1024, 100) {
-				if !line.MatchAll(v.Str) {
+			count := 0
+			for {
+				count++
+				lineStr, err := readLine(br, 100)
+				if err != nil {
+					break
+				}
+				if len(lineStr) == 0 {
 					continue
 				}
-
 				if *okjson {
 					if *nf {
-						jb.ChildPath(fp).Push().Printf(`{"Num":%d,"Text":"%s"}`, v.Num, v.Str)
+						jb.ChildPath(fp).Push().Printf(`{"Num":%d,"Text":"%s"}`, count, lineStr)
 					} else {
-						jb.ChildPath(fp).Push().Value(v.Str)
+						jb.ChildPath(fp).Push().Value(lineStr)
 					}
 				} else {
 					if *nf {
-						filetext += strconv.Itoa(v.Num) + " "
+						filetext += strconv.Itoa(count) + " "
 					}
-					filetext += line.OKHightLight(v.Str) + "\n"
+					filetext += line.OKHightLight(lineStr) + "\n"
 				}
 			}
-			fd.Close()
+			// fd.Open()
+			// filetext := ""
+			// for v := range fd.ReadChan(1024, 100) {
+			// 	if !line.MatchAll(v.Str) {
+			// 		continue
+			// 	}
+
+			// 	if *okjson {
+			// 		if *nf {
+			// 			jb.ChildPath(fp).Push().Printf(`{"Num":%d,"Text":"%s"}`, v.Num, v.Str)
+			// 		} else {
+			// 			jb.ChildPath(fp).Push().Value(v.Str)
+			// 		}
+			// 	} else {
+			// 		if *nf {
+			// 			filetext += strconv.Itoa(v.Num) + " "
+			// 		}
+			// 		filetext += line.OKHightLight(v.Str) + "\n"
+			// 	}
+			// }
+			// fd.Close()
 			if !*okjson {
 				ch <- fp
 				ch <- filetext
 			}
 		}
 	}
+}
+
+// チェック済み行を返す
+func readLine(br *bufio.Reader, linemax int) (string, error) {
+	b, _, err := br.ReadLine()
+	if err != nil {
+		return "", err
+	}
+	lineStr := string(b)
+	if strings.ContainsAny(lineStr, "\x00\x01\x02\x03\x04\x05\x06\x07\x08") {
+		return "", errors.New("This is Binnary File.")
+	}
+	// 正規表現に一致するか
+	if !line.MatchAll(lineStr) {
+		return "", nil
+	}
+	// 文字数制限
+	if len(lineStr) > linemax {
+		lineStr = lineStr[:linemax]
+	}
+	return lineStr, nil
 }

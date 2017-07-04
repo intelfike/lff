@@ -230,19 +230,25 @@ func run(ch chan string) {
 				ch <- ""
 			}
 		} else {
-			err := readFile(fd.Path(), fp, ch)
+			filetext, err := readFile(fd.Path(), fp)
 			if err != nil {
 				fmt.Fprintln(os.Stderr, err)
+			}
+			if !*okjson {
+				ch <- fp
+				ch <- filetext
 			}
 		}
 	}
 }
 
 // ファイルを読み取って表示する
-func readFile(name, fp string, ch chan string) error {
+// name=読み取るファイル
+// fp=表示するファイル名
+func readFile(name, fp string) (string, error) {
 	r, err := os.Open(name)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer r.Close()
 	br := bufio.NewReader(r)
@@ -270,11 +276,8 @@ func readFile(name, fp string, ch chan string) error {
 			filetext += line.OKHightLight(lineStr) + "\n"
 		}
 	}
-	if !*okjson {
-		ch <- fp
-		ch <- filetext
-	}
-	return nil
+
+	return filetext, nil
 }
 
 // チェック済み行を返す

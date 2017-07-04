@@ -233,7 +233,7 @@ func run(ch chan string) {
 		} else {
 			r, err := os.Open(fd.Path())
 			if err != nil {
-				log.Fatal(err)
+				log.Println("Reading Error: ", err)
 			}
 			defer r.Close()
 			br := bufio.NewReader(r)

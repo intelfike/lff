@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -231,63 +230,51 @@ func run(ch chan string) {
 				ch <- ""
 			}
 		} else {
-			r, err := os.Open(fd.Path())
+			err := readFile(fd.Path(), fp, ch)
 			if err != nil {
-				log.Println("Reading Error: ", err)
-			}
-			defer r.Close()
-			br := bufio.NewReader(r)
-			filetext := ""
-			count := 0
-			for {
-				count++
-				lineStr, err := readLine(br, 100)
-				if err != nil {
-					break
-				}
-				if len(lineStr) == 0 {
-					continue
-				}
-				if *okjson {
-					if *nf {
-						jb.ChildPath(fp).Push().Printf(`{"Num":%d,"Text":"%s"}`, count, lineStr)
-					} else {
-						jb.ChildPath(fp).Push().Value(lineStr)
-					}
-				} else {
-					if *nf {
-						filetext += strconv.Itoa(count) + " "
-					}
-					filetext += line.OKHightLight(lineStr) + "\n"
-				}
-			}
-			// fd.Open()
-			// filetext := ""
-			// for v := range fd.ReadChan(1024, 100) {
-			// 	if !line.MatchAll(v.Str) {
-			// 		continue
-			// 	}
-
-			// 	if *okjson {
-			// 		if *nf {
-			// 			jb.ChildPath(fp).Push().Printf(`{"Num":%d,"Text":"%s"}`, v.Num, v.Str)
-			// 		} else {
-			// 			jb.ChildPath(fp).Push().Value(v.Str)
-			// 		}
-			// 	} else {
-			// 		if *nf {
-			// 			filetext += strconv.Itoa(v.Num) + " "
-			// 		}
-			// 		filetext += line.OKHightLight(v.Str) + "\n"
-			// 	}
-			// }
-			// fd.Close()
-			if !*okjson {
-				ch <- fp
-				ch <- filetext
+				fmt.Fprintln(os.Stderr, err)
 			}
 		}
 	}
+}
+
+// ファイルを読み取って表示する
+func readFile(name, fp string, ch chan string) error {
+	r, err := os.Open(name)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+	br := bufio.NewReader(r)
+	filetext := ""
+	count := 0
+	for {
+		count++
+		lineStr, err := readLine(br, 100)
+		if err != nil {
+			break
+		}
+		if len(lineStr) == 0 {
+			continue
+		}
+		if *okjson {
+			if *nf {
+				jb.ChildPath(fp).Push().Printf(`{"Num":%d,"Text":"%s"}`, count, lineStr)
+			} else {
+				jb.ChildPath(fp).Push().Value(lineStr)
+			}
+		} else {
+			if *nf {
+				filetext += strconv.Itoa(count) + " "
+			}
+			filetext += line.OKHightLight(lineStr) + "\n"
+		}
+	}
+	if !*okjson {
+		ch <- fp
+		ch <- filetext
+	}
+	return nil
 }
 
 // チェック済み行を返す

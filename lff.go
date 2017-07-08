@@ -31,8 +31,9 @@ var (
 	nf       = flag.Bool("n", false, "line number")
 	sf       = flag.Bool("s", false, "display file with stop")
 	op       = flag.Bool("o", false, "ask to open a file. (y/[Enter])")
+	ef       = flag.Bool("e", false, "printing errors")
 	cd       = flag.String("cd", ".", "change directory")
-	okjson   = flag.Bool("json", false, "display json")
+	okjson   = flag.Bool("json", false, "printing json")
 	indent   = flag.String("indent", "", "json indent")
 	okline   bool
 	jb       = jsonbase.New()
@@ -44,7 +45,8 @@ func init() {
 	// カレントディレクトリ変更
 	err := os.Chdir(*cd)
 	if err != nil {
-		fmt.Println("-cd [path] path is not found.")
+		fmt.Fprintln(os.Stderr, "-cd [path] path is not found.")
+		os.Exit(1)
 	}
 
 	// コマンドライン引数の正規表現を入力
@@ -186,7 +188,7 @@ func openGenFile(filename string) {
 	if yn == "y" {
 		err := open.Run(filename)
 		fmt.Println(filename)
-		if err != nil {
+		if err != nil && *ef {
 			fmt.Fprintln(os.Stderr, err)
 		}
 	}
@@ -201,7 +203,7 @@ func run(ch chan string) {
 	} else {
 		dir, err = fileexp.ReadDirAll(".", 1024)
 	}
-	if err != nil {
+	if err != nil && *ef {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
@@ -237,7 +239,7 @@ func run(ch chan string) {
 			}
 		} else {
 			filetext, err := readFile(fd.Path(), fp)
-			if err != nil {
+			if err != nil && *ef {
 				fmt.Fprintln(os.Stderr, err)
 			}
 			if !*okjson {
@@ -253,7 +255,7 @@ func run(ch chan string) {
 // fp=表示するファイル名
 func readFile(name, fp string) (string, error) {
 	r, err := os.Open(name)
-	if err != nil {
+	if err != nil && *ef {
 		return "", err
 	}
 	defer r.Close()

@@ -30,7 +30,7 @@ var (
 	df       = flag.Bool("d", false, "directory")
 	nf       = flag.Bool("n", false, "line number")
 	sf       = flag.Bool("s", false, "display file with stop")
-	op       = flag.Bool("o", false, "open file. (y/[Enter])")
+	op       = flag.Bool("o", false, "ask to open a file. (y/[Enter])")
 	cd       = flag.String("cd", ".", "change directory")
 	okjson   = flag.Bool("json", false, "display json")
 	indent   = flag.String("indent", "", "json indent")
@@ -55,8 +55,6 @@ func init() {
 	file = regexps.New(distrComp(filelist))
 	line = regexps.New(distrComp(linelist))
 	okline = !line.IsEmpty()
-
-	*sf = *sf || *op
 
 	if *sf {
 		fmt.Println(
@@ -117,7 +115,7 @@ func distrComp(s []string) ([]string, []string) {
 func main() {
 	if runtime.GOOS == "windows" {
 		// Buffer size = 100KB
-		f := wtof.New(ansicolor.NewAnsiColorWriter(os.Stdout), 100000)
+		f := wtof.New(ansicolor.NewAnsiColorWriter(os.Stdout), 100*(1<<10))
 		defer f.Close()
 		os.Stdout = f.File
 	}
@@ -150,10 +148,12 @@ func main() {
 			d, f := filepath.Split(filename)
 			if !okline {
 				fmt.Println(d + file.OKHightLight(f))
+				openGenFile(filename)
 				continue
 			}
-			fmt.Print("[" + d + file.OKHightLight(f) + "]")
+			fmt.Print(d + file.OKHightLight(f) + "\n```")
 			if *sf {
+				fmt.Print("(a/s/e/[Enter])")
 				s := ""
 				fmt.Scanln(&s)
 				switch s {
@@ -168,20 +168,26 @@ func main() {
 				fmt.Println()
 			}
 			fmt.Print(filetext)
-
-			// 表示時に開ける-oフラグ
-			if *op && *sf {
-				fmt.Print("Open?(y/)")
-				yn := ""
-				fmt.Scanln(&yn)
-				if yn == "y" {
-					err := open.Run(filename)
-					if err != nil {
-						fmt.Println(err)
-					}
-				}
-			}
+			fmt.Println("```")
+			openGenFile(filename)
 			fmt.Println()
+		}
+	}
+}
+
+func openGenFile(filename string) {
+	// 表示時に開ける-oフラグ
+	if !*op {
+		return
+	}
+	fmt.Print("Open?(y/[Enter])")
+	yn := ""
+	fmt.Scanln(&yn)
+	if yn == "y" {
+		err := open.Run(filename)
+		fmt.Println(filename)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
 		}
 	}
 }
@@ -196,7 +202,7 @@ func run(ch chan string) {
 		dir, err = fileexp.ReadDirAll(".", 1024)
 	}
 	if err != nil {
-		fmt.Println(err)
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 	for fd := range dir {

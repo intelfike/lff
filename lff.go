@@ -31,7 +31,7 @@ var (
 	nf       = flag.Bool("n", false, "line number")
 	sf       = flag.Bool("s", false, "display file with stop")
 	op       = flag.Bool("o", false, "ask to open a file. (y/[Enter])")
-	ef       = flag.Bool("e", false, "printing errors")
+	ef       = flag.Bool("e", false, "hiding errors")
 	cd       = flag.String("cd", ".", "change directory")
 	okjson   = flag.Bool("json", false, "printing json")
 	indent   = flag.String("indent", "", "json indent")
@@ -188,7 +188,7 @@ func openGenFile(filename string) {
 	if yn == "y" {
 		err := open.Run(filename)
 		fmt.Println(filename)
-		if err != nil && *ef {
+		if err != nil && !*ef {
 			fmt.Fprintln(os.Stderr, err)
 		}
 	}
@@ -203,7 +203,7 @@ func run(ch chan string) {
 	} else {
 		dir, err = fileexp.ReadDirAll(".", 1024)
 	}
-	if err != nil && *ef {
+	if err != nil && !*ef {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
@@ -239,7 +239,7 @@ func run(ch chan string) {
 			}
 		} else {
 			filetext, err := readFile(fd.Path(), fp)
-			if err != nil && *ef {
+			if err != nil && !*ef {
 				fmt.Fprintln(os.Stderr, err)
 			}
 			if !*okjson {
@@ -255,7 +255,7 @@ func run(ch chan string) {
 // fp=表示するファイル名
 func readFile(name, fp string) (string, error) {
 	r, err := os.Open(name)
-	if err != nil && *ef {
+	if err != nil && !*ef {
 		return "", err
 	}
 	defer r.Close()

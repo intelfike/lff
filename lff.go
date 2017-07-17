@@ -143,11 +143,14 @@ func main() {
 		}
 		fmt.Print(jb)
 	} else {
+		fileCount := 0
+		lineCount := 0
 		for filename := range ch {
 			filetext := <-ch
 			if okline && len(filetext) == 0 {
 				continue
 			}
+			fileCount++
 			d, f := filepath.Split(filename)
 			if !okline {
 				fmt.Println(d + file.OKHightLight(f))
@@ -173,9 +176,19 @@ func main() {
 			if filetext != "" {
 				fmt.Print(filetext)
 				fmt.Println("[EOF]")
+				lineCount += strings.Count(filetext, "\n")
 			}
 			openGenFile(filename)
 			fmt.Println()
+		}
+		fmt.Println()
+		if *df {
+			fmt.Println("", fileCount, "Directories")
+		} else {
+			fmt.Println("", fileCount, "Files")
+		}
+		if okline {
+			fmt.Println("", lineCount, "Lines")
 		}
 	}
 }

@@ -60,7 +60,8 @@ func init() {
 
 	if *sf {
 		fmt.Println(
-			`all(a) -> display all.(disable stop)
+			`[commands]
+all(a) -> display all.(disable stop)
 skip(s) -> skip file.
 exit(e) -> end.
 `)
@@ -153,9 +154,9 @@ func main() {
 				openGenFile(filename)
 				continue
 			}
-			fmt.Print(d + file.OKHightLight(f) + "\n```")
+			fmt.Print(">>> ", d+file.OKHightLight(f), " >>>")
 			if *sf {
-				fmt.Print("(a/s/e/[Enter])")
+				// fmt.Print(" >")
 				s := ""
 				fmt.Scanln(&s)
 				switch s {
@@ -169,8 +170,10 @@ func main() {
 			} else {
 				fmt.Println()
 			}
-			fmt.Print(filetext)
-			fmt.Println("```")
+			if filetext != "" {
+				fmt.Print(filetext)
+				fmt.Println("[EOF]")
+			}
 			openGenFile(filename)
 			fmt.Println()
 		}

@@ -32,6 +32,7 @@ var (
 	sf       = flag.Bool("s", false, "display file with stop")
 	op       = flag.Bool("o", false, "ask to open a file. (y/[Enter])")
 	ef       = flag.Bool("e", false, "hiding errors")
+	limit    = flag.Int("limit", 100, "line size limit")
 	cd       = flag.String("cd", ".", "change directory")
 	okjson   = flag.Bool("json", false, "printing json")
 	indent   = flag.String("indent", "", "json indent")
@@ -280,7 +281,7 @@ func readFile(name, fp string) (string, error) {
 	count := 0
 	for {
 		count++
-		lineStr, err := readLine(br, 100)
+		lineStr, err := readLine(br, *limit)
 		if err != nil {
 			break
 		}

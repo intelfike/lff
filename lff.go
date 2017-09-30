@@ -49,9 +49,11 @@ func init() {
 		fmt.Fprintln(os.Stderr, "-cd [path] path is not found.")
 		os.Exit(1)
 	}
+
 	direlist := strings.Split(flag.Arg(0), ",")
 	filelist := strings.Split(flag.Arg(1), ",")
 	linelist := strings.Split(flag.Arg(2), ",")
+	fmt.Println(direlist, filelist, linelist)
 	dire = regexps.New(distrComp(direlist))
 	file = regexps.New(distrComp(filelist))
 	line = regexps.New(distrComp(linelist))
@@ -71,7 +73,7 @@ exit(e) -> end.
 
   Usage
 
- lff [Options] [Directory regexp],[File regexp],[Line regexp]
+ lff [Options] [Directory regexp] [File regexp] [Line regexp]
 
  Options = (-cd "directory path"|-d|-f|-n|-s|-o|-json|-indent "indent")
 
@@ -82,16 +84,16 @@ exit(e) -> end.
 ## Display files from directory recursive.
 	lff .
 ## Search files from only current direcotry.
-	lff , \.go$
+	lff "" \.go$
 ## Recursive search files from all directory.
-	lff ., \.go$
+	lff . \.go$
 
 ## Search "func main".
-	lff ., \.go$, func\smain
+	lff . \.go$ func\smain
 ## Line contains both of "func" and "main".
-	lff ., \.go$, func main
+	lff . \.go$ func,main
 ## Line contains "func". But never contains "main".
-	lff ., \.go$, func -main
+	lff . \.go$ func,-main
 
 
   Flags

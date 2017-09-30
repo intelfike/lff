@@ -21,23 +21,23 @@ import (
 )
 
 var (
-	dire     *regexps.RegSet
-	file     *regexps.RegSet
-	line     *regexps.RegSet
-	spaceReg = regexp.MustCompile("\\s+")
-	hf       = flag.Bool("h", false, "display help")
-	ff       = flag.Bool("f", false, "full path")
-	df       = flag.Bool("d", false, "directory")
-	nf       = flag.Bool("n", false, "line number")
-	sf       = flag.Bool("s", false, "display file with stop")
-	op       = flag.Bool("o", false, "ask to open a file. (y/[Enter])")
-	ef       = flag.Bool("e", false, "hiding errors")
-	limit    = flag.Int("limit", 100, "line size limit")
-	cd       = flag.String("cd", ".", "change directory")
-	okjson   = flag.Bool("json", false, "printing json")
-	indent   = flag.String("indent", "", "json indent")
-	okline   bool
-	jb       = jsonbase.New()
+	dire      *regexps.RegSet
+	file      *regexps.RegSet
+	line      *regexps.RegSet
+	spacesReg = regexp.MustCompile("\\s+")
+	hf        = flag.Bool("h", false, "display help")
+	ff        = flag.Bool("f", false, "full path")
+	df        = flag.Bool("d", false, "directory")
+	nf        = flag.Bool("n", false, "line number")
+	sf        = flag.Bool("s", false, "display file with stop")
+	op        = flag.Bool("o", false, "ask to open a file. (y/[Enter])")
+	ef        = flag.Bool("e", false, "hiding errors")
+	limit     = flag.Int("limit", 100, "line size limit")
+	cd        = flag.String("cd", ".", "change directory")
+	okjson    = flag.Bool("json", false, "printing json")
+	indent    = flag.String("indent", "", "json indent")
+	okline    bool
+	jb        = jsonbase.New()
 )
 
 func init() {
@@ -49,11 +49,9 @@ func init() {
 		fmt.Fprintln(os.Stderr, "-cd [path] path is not found.")
 		os.Exit(1)
 	}
-
-	// コマンドライン引数の正規表現を入力
-	direlist := spaceReg.Split(flag.Arg(0), -1)
-	filelist := spaceReg.Split(flag.Arg(1), -1)
-	linelist := spaceReg.Split(flag.Arg(2), -1)
+	direlist := strings.Split(flag.Arg(0), ",")
+	filelist := strings.Split(flag.Arg(1), ",")
+	linelist := strings.Split(flag.Arg(2), ",")
 	dire = regexps.New(distrComp(direlist))
 	file = regexps.New(distrComp(filelist))
 	line = regexps.New(distrComp(linelist))
@@ -73,20 +71,27 @@ exit(e) -> end.
 
   Usage
 
- lff [Options] [Directory regexp] [File regexp] [Line regexp]
+ lff [Options] [Directory regexp],[File regexp],[Line regexp]
 
  Options = (-cd "directory path"|-d|-f|-n|-s|-o|-json|-indent "indent")
 
   Examples
 
- lff => Display files from current directory.
- lff . => Display files from directory recursive.
- lff "" \.go$ => Search files from only current direcotry.
- lff . \.go$ => Recursive search files from all directory.
+## Display files from current directory.
+	lff
+## Display files from directory recursive.
+	lff .
+## Search files from only current direcotry.
+	lff , \.go$
+## Recursive search files from all directory.
+	lff ., \.go$
 
- lff . \.go$ "func\smain" => Search "func main".
- lff . \.go$ "func main" => Line contains both of "func" and "main".
- lff . \.go$ "func \!main" => Line contains "func". But never contains "main".
+## Search "func main".
+	lff ., \.go$, func\smain
+## Line contains both of "func" and "main".
+	lff ., \.go$, func main
+## Line contains "func". But never contains "main".
+	lff ., \.go$, func -main
 
 
   Flags
@@ -104,11 +109,11 @@ func distrComp(s []string) ([]string, []string) {
 		if len(v) == 0 {
 			continue
 		}
-		if strings.HasPrefix(v, "\\!") {
-			ng = append(ng, v[2:])
+		if strings.HasPrefix(v, "-") {
+			ng = append(ng, v[1:])
 		} else {
-			if strings.HasPrefix(v, "\\\\!") {
-				v = "\\!" + v[3:]
+			if strings.HasPrefix(v, "\\-") {
+				v = "-" + v[2:]
 			}
 			ok = append(ok, v)
 		}

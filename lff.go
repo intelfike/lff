@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"golang.org/x/term"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -53,7 +54,9 @@ func init() {
 	direlist := strings.Split(flag.Arg(0), ",")
 	filelist := strings.Split(flag.Arg(1), ",")
 	linelist := strings.Split(flag.Arg(2), ",")
-	fmt.Println(direlist, filelist, linelist)
+	if term.IsTerminal(int(os.Stdout.Fd())) {
+		fmt.Println(direlist, filelist, linelist)
+	}
 	dire = regexps.New(distrComp(direlist))
 	file = regexps.New(distrComp(filelist))
 	line = regexps.New(distrComp(linelist))
@@ -165,38 +168,48 @@ func main() {
 				openGenFile(filename)
 				continue
 			}
-			fmt.Print(">>> ", d+file.OKHightLight(f), " >>>")
-			if *sf {
-				// fmt.Print(" >")
-				s := ""
-				fmt.Scanln(&s)
-				switch s {
-				case "e", "exit":
-					os.Exit(1)
-				case "a", "all":
-					*sf = false
-				case "s", "skip":
-					filetext = ""
+			if term.IsTerminal(int(os.Stdout.Fd())) {
+				fmt.Print(">>> ", d+file.OKHightLight(f), " >>>")
+				if *sf {
+					// fmt.Print(" >")
+					s := ""
+					fmt.Scanln(&s)
+					switch s {
+					case "e", "exit":
+						os.Exit(1)
+					case "a", "all":
+						*sf = false
+					case "s", "skip":
+						filetext = ""
+					}
+				} else {
+					fmt.Println()
 				}
-			} else {
+				if filetext != "" {
+					fmt.Print(filetext)
+					fmt.Println("[EOF]")
+					lineCount += strings.Count(filetext, "\n")
+				}
+				openGenFile(filename)
 				fmt.Println()
+			} else {
+				// パイプライン
+				ss := strings.Split(filetext, "\n")
+				for _, s := range ss {
+					fmt.Println(filename + ":" + s)
+				}
 			}
-			if filetext != "" {
-				fmt.Print(filetext)
-				fmt.Println("[EOF]")
-				lineCount += strings.Count(filetext, "\n")
-			}
-			openGenFile(filename)
+		}
+		if term.IsTerminal(int(os.Stdout.Fd())) {
 			fmt.Println()
-		}
-		fmt.Println()
-		if *df {
-			fmt.Println("", fileCount, "Directories")
-		} else {
-			fmt.Println("", fileCount, "Files")
-		}
-		if okline {
-			fmt.Println("", lineCount, "Lines")
+			if *df {
+				fmt.Println("", fileCount, "Directories")
+			} else {
+				fmt.Println("", fileCount, "Files")
+			}
+			if okline {
+				fmt.Println("", lineCount, "Lines")
+			}
 		}
 	}
 }

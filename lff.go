@@ -133,7 +133,9 @@ func main() {
 		defer f.Close()
 		os.Stdout = f.File
 	}
-	defer fmt.Print("\x1b[m")
+	if term.IsTerminal(int(os.Stdout.Fd())) {
+		defer fmt.Print("\x1b[m")
+	}
 
 	// 表示と探索の同期
 	ch := make(chan string, 1024)
@@ -164,7 +166,11 @@ func main() {
 			fileCount++
 			d, f := filepath.Split(filename)
 			if !okline {
-				fmt.Println(d + file.OKHightLight(f))
+				if term.IsTerminal(int(os.Stdout.Fd())) {
+					fmt.Println(d + file.OKHightLight(f))
+				} else {
+					fmt.Println(filename)
+				}
 				openGenFile(filename)
 				continue
 			}

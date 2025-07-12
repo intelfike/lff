@@ -37,6 +37,7 @@ var (
 	cd        = flag.String("cd", ".", "change directory")
 	okjson    = flag.Bool("json", false, "printing json")
 	indent    = flag.String("indent", "", "json indent")
+	nameOnly  = flag.Bool("name-only", false, "If not displaing lines.")
 	okline    bool
 	jb        = jsonbase.New()
 )
@@ -165,7 +166,7 @@ func main() {
 			}
 			fileCount++
 			d, f := filepath.Split(filename)
-			if !okline {
+			if !okline || *nameOnly {
 				if term.IsTerminal(int(os.Stdout.Fd())) {
 					fmt.Println(d + file.OKHightLight(f))
 				} else {

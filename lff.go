@@ -172,6 +172,7 @@ func main() {
 				} else {
 					fmt.Println(filename)
 				}
+				lineCount += strings.Count(filetext, "\n")
 				openGenFile(filename)
 				continue
 			}

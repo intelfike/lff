@@ -30,6 +30,7 @@
 
 ###  Options
 
+```
   -cd string
       change directory (default ".")
   -d  directory
@@ -42,6 +43,7 @@
   -n  line number
   -o  open file. (y/[Enter])
   -s  display file with stop
+```
 
 
 ## Sample

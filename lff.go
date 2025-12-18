@@ -79,8 +79,6 @@ exit(e) -> end.
 
  lff [Options] [Directory regexp] [File regexp] [Line regexp]
 
- Options = (-cd "directory path"|-d|-f|-n|-s|-o|-json|-indent "indent")
-
   Examples
 
 ## Display files from current directory.
@@ -100,7 +98,7 @@ exit(e) -> end.
 	lff . \.go$ func,-main
 
 
-  Flags
+  Options
 `)
 		flag.PrintDefaults()
 		os.Exit(1)

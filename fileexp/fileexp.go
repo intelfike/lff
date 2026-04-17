@@ -18,20 +18,20 @@ func ReadDirAll(dir string, bufsize int) (chan FileDir, error) {
 		return nil, err
 	}
 	ch := make(chan FileDir, bufsize)
-	go recReadDir(dir, ch, 0)
+	go func() {
+		recReadDir(dir, ch)
+		close(ch)
+	}()
 	return ch, nil
 }
 
-func recReadDir(dir string, ch chan FileDir, depth int) {
+func recReadDir(dir string, ch chan FileDir) {
 	Infos, _ := ioutil.ReadDir(dir)
 	for _, v := range Infos {
 		ch <- FileDir{Dir: dir, Info: v}
 		if v.IsDir() {
-			recReadDir(filepath.Join(dir, v.Name()), ch, depth+1)
+			recReadDir(filepath.Join(dir, v.Name()), ch)
 		}
-	}
-	if depth == 0 {
-		close(ch)
 	}
 }
 

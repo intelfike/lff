@@ -8,7 +8,6 @@ import (
 	"golang.org/x/term"
 	"os"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -22,28 +21,40 @@ import (
 )
 
 var (
-	dire      *regexps.RegSet
-	file      *regexps.RegSet
-	line      *regexps.RegSet
-	spacesReg = regexp.MustCompile("\\s+")
-	hf        = flag.Bool("h", false, "display help")
-	ff        = flag.Bool("f", false, "full path")
-	df        = flag.Bool("d", false, "directory")
-	nf        = flag.Bool("n", false, "line number")
-	sf        = flag.Bool("s", false, "display file with stop")
-	op        = flag.Bool("o", false, "ask to open a file. (y/[Enter])")
-	ef        = flag.Bool("e", false, "hiding errors")
-	limit     = flag.Int("limit", 100, "line size limit")
-	cd        = flag.String("cd", ".", "change directory")
-	okjson    = flag.Bool("json", false, "printing json")
-	indent    = flag.String("indent", "", "json indent")
-	nameOnly  = flag.Bool("name-only", false, "If not displaing lines.")
-	okline    bool
-	jb        = jsonbase.New()
+	// flags
+	hf       = flag.Bool("h", false, "display help")
+	ff       = flag.Bool("f", false, "full path")
+	Ff       = flag.Bool("F", false, "plain text line search (no comma-split)")
+	df       = flag.Bool("d", false, "directory")
+	nf       = flag.Bool("n", false, "line number")
+	sf       = flag.Bool("s", false, "display file with stop")
+	op       = flag.Bool("o", false, "ask to open a file. (y/[Enter])")
+	ef       = flag.Bool("e", false, "hiding errors")
+	to       = flag.String("to", "", "replacement string for display (does not modify files)")
+	wf       = flag.Bool("w", false, "overwrite files with replacement result (requires -to)")
+	limit    = flag.Int("limit", 100, "line size limit")
+	cd       = flag.String("cd", ".", "change directory")
+	okjson   = flag.Bool("json", false, "printing json")
+	indent   = flag.String("indent", "", "json indent")
+	nameOnly = flag.Bool("name-only", false, "If not displaing lines.")
+
+	// derived from flags and arguments in init()
+	dire   *regexps.RegSet
+	file   *regexps.RegSet
+	line   *regexps.RegSet
+	lineF  []string
+	okline bool
+	toSet  bool
+	jb     = jsonbase.New()
 )
 
 func init() {
 	flag.Parse()
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == "to" {
+			toSet = true
+		}
+	})
 
 	// カレントディレクトリ変更
 	err := os.Chdir(*cd)
@@ -54,25 +65,34 @@ func init() {
 
 	direlist := strings.Split(flag.Arg(0), ",")
 	filelist := strings.Split(flag.Arg(1), ",")
-	linelist := strings.Split(flag.Arg(2), ",")
+	lineArg := flag.Arg(2)
+	var linelist []string
+	if *Ff {
+		if lineArg != "" {
+			lineF = []string{lineArg}
+		}
+		linelist = lineF
+		line = regexps.New(nil, nil)
+	} else {
+		linelist = strings.Split(lineArg, ",")
+		line = regexps.New(distrComp(linelist))
+	}
 	if term.IsTerminal(int(os.Stdout.Fd())) {
 		fmt.Println(direlist, filelist, linelist)
 	}
 	dire = regexps.New(distrComp(direlist))
 	file = regexps.New(distrComp(filelist))
-	line = regexps.New(distrComp(linelist))
-	okline = !line.IsEmpty()
+	okline = hasLineFilter()
 
 	if *sf {
-		fmt.Println(
-			`[commands]
+		fmt.Print(`[commands]
 all(a) -> display all.(disable stop)
 skip(s) -> skip file.
 exit(e) -> end.
 `)
 	}
 	if *hf {
-		fmt.Println(`This command is searching dire/file/line tool.
+		fmt.Print(`This command is searching dire/file/line tool.
 
 
   Usage
@@ -96,11 +116,26 @@ exit(e) -> end.
 	lff . \.go$ func,main
 ## Line contains "func". But never contains "main".
 	lff . \.go$ func,-main
+## Plain text search (no regex, no comma-split).
+	lff -F . \.go$ "func main"
+## Replace matched text for display only.
+	lff . \.go$ "func\s+main" -to="func entry"
+## Overwrite file with replacement result.
+	lff -F . \.txt$ old-text -to=new-text -w
 
 
   Options
 `)
 		flag.PrintDefaults()
+		os.Exit(1)
+	}
+
+	if *wf && !toSet {
+		fmt.Fprintln(os.Stderr, "error: -w requires -to")
+		os.Exit(1)
+	}
+	if (toSet || *wf) && !okline {
+		fmt.Fprintln(os.Stderr, "error: -to and -w require a line search pattern (3rd argument)")
 		os.Exit(1)
 	}
 }
@@ -123,6 +158,92 @@ func distrComp(s []string) ([]string, []string) {
 		}
 	}
 	return ok, ng
+}
+
+func hasLineFilter() bool {
+	if *Ff {
+		return len(lineF) > 0
+	}
+	return !line.IsEmpty()
+}
+
+func matchLine(lineStr string) bool {
+	if *Ff {
+		for _, target := range lineF {
+			if !strings.Contains(lineStr, target) {
+				return false
+			}
+		}
+		return true
+	}
+	return line.MatchAll(lineStr)
+}
+
+// getReplaceTargets returns the search patterns used for -to replacement.
+func getReplaceTargets() []string {
+	if *Ff {
+		return append([]string{}, lineF...)
+	}
+	targets := make([]string, 0, len(line.OK))
+	for _, reg := range line.OK {
+		targets = append(targets, reg.String())
+	}
+	return targets
+}
+
+// displayLine returns the line formatted for display:
+// if -to is set the matched text is replaced and the replacement is highlighted,
+// otherwise the matched text is highlighted.
+func displayLine(lineStr string) string {
+	if toSet {
+		result, _ := regexps.ReplaceAll(lineStr, getReplaceTargets(), *to, *Ff)
+		if *to != "" {
+			result = strings.ReplaceAll(result, *to, "\x1b[31m"+*to+"\x1b[m")
+			result = strings.Replace(result, "\x1b[m\x1b[31m", "", -1)
+		}
+		return result
+	}
+	if *Ff {
+		rv := lineStr
+		for _, target := range lineF {
+			if target == "" {
+				continue
+			}
+			rv = strings.ReplaceAll(rv, target, "\x1b[31m"+target+"\x1b[m")
+		}
+		return strings.Replace(rv, "\x1b[m\x1b[31m", "", -1)
+	}
+	return line.OKHightLight(lineStr)
+}
+
+// buildReplacedContent reads name, applies replacement to all lines that match,
+// and returns the display text (matched lines only) and the full file text for writing.
+func buildReplacedContent(name string) (string, string, error) {
+	content, err := os.ReadFile(name)
+	if err != nil {
+		return "", "", err
+	}
+	if strings.ContainsAny(string(content), "\x00\x01\x02\x03\x04\x05\x06\x07\x08") {
+		return "", "", errors.New("This is Binnary File.")
+	}
+	targets := getReplaceTargets()
+	lines := strings.Split(string(content), "\n")
+	var display strings.Builder
+	var full strings.Builder
+	for i, lineStr := range lines {
+		replaced, _ := regexps.ReplaceAll(lineStr, targets, *to, *Ff)
+		full.WriteString(replaced)
+		if i < len(lines)-1 {
+			full.WriteByte('\n')
+		}
+		if matchLine(lineStr) {
+			if *nf {
+				display.WriteString(strconv.Itoa(i+1) + " ")
+			}
+			display.WriteString(replaced + "\n")
+		}
+	}
+	return display.String(), full.String(), nil
 }
 
 func main() {
@@ -280,6 +401,25 @@ func run(ch chan string) {
 			if !*okjson {
 				ch <- ""
 			}
+		} else if *wf {
+			displayText, fullText, err := buildReplacedContent(fd.Path())
+			if err != nil {
+				if *ef {
+					fmt.Fprintln(os.Stderr, err)
+				}
+				continue
+			}
+			if displayText == "" {
+				continue
+			}
+			if err := os.WriteFile(fd.Path(), []byte(fullText), fd.Info.Mode().Perm()); err != nil {
+				if *ef {
+					fmt.Fprintln(os.Stderr, err)
+				}
+				continue
+			}
+			ch <- fp
+			ch <- displayText
 		} else {
 			filetext, err := readFile(fd.Path(), fp)
 			if err != nil && *ef {
@@ -324,7 +464,7 @@ func readFile(name, fp string) (string, error) {
 			if *nf {
 				filetext += strconv.Itoa(count) + " "
 			}
-			filetext += line.OKHightLight(lineStr) + "\n"
+			filetext += displayLine(lineStr) + "\n"
 		}
 	}
 
@@ -342,7 +482,7 @@ func readLine(br *bufio.Reader, linemax int) (string, error) {
 		return "", errors.New("This is Binnary File.")
 	}
 	// 正規表現に一致するか
-	if !line.MatchAll(lineStr) {
+	if !matchLine(lineStr) {
 		return "", nil
 	}
 	// 文字数制限

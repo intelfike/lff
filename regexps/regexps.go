@@ -78,3 +78,32 @@ func (rs *RegSet) OKHightLight(text string) string {
 	rv = strings.Replace(rv, "\x1b[m\x1b[31m", "", -1)
 	return rv
 }
+
+// ReplaceAll replaces all occurrences of each pattern in text with to.
+// If fixed is true, patterns are treated as plain strings; otherwise as regular expressions.
+// Returns the resulting string and whether any replacement was made.
+func ReplaceAll(text string, patterns []string, to string, fixed bool) (string, bool) {
+	rv := text
+	matched := false
+	for _, v := range patterns {
+		if v == "" {
+			continue
+		}
+		if fixed {
+			if strings.Contains(rv, v) {
+				matched = true
+			}
+			rv = strings.ReplaceAll(rv, v, to)
+		} else {
+			reg, err := regexp.Compile(v)
+			if err != nil {
+				continue
+			}
+			if reg.MatchString(rv) {
+				matched = true
+			}
+			rv = reg.ReplaceAllString(rv, to)
+		}
+	}
+	return rv, matched
+}

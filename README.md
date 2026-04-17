@@ -26,6 +26,12 @@
   lff . \.go$ func,main
 ## Line contains "func". But never contains "main".
   lff . \.go$ func,-main
+## Plain text search (no regex, no comma-split).
+  lff -F . \.go$ "func main"
+## Replace matched text for display only (file unchanged).
+  lff . \.go$ "func\s+main" -to="func entry"
+## Overwrite file with replacement result.
+  lff -F . \.txt$ old-text -to=new-text -w
 ```
 
 ###  Options
@@ -34,6 +40,7 @@
   -cd string
       change directory (default ".")
   -d  directory
+  -F  plain text line search (no comma-split)
   -f  full path
   -h  display help
   -indent string
@@ -43,6 +50,9 @@
   -n  line number
   -o  open file. (y/[Enter])
   -s  display file with stop
+  -to string
+      replacement string for display (file unchanged)
+  -w  overwrite files with replacement result (requires -to)
 ```
 
 

@@ -485,8 +485,8 @@ func readLine(br *bufio.Reader, linemax int) (string, error) {
 	if !matchLine(lineStr) {
 		return "", nil
 	}
-	// 文字数制限
-	if len(lineStr) > linemax {
+	// 文字数制限 (0以下なら無制限)
+	if linemax > 0 && len(lineStr) > linemax {
 		lineStr = lineStr[:linemax]
 	}
 	return lineStr, nil

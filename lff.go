@@ -217,19 +217,21 @@ func displayLine(lineStr string) string {
 }
 
 // buildReplacedContent reads name, applies replacement to all lines that match,
-// and returns the display text (matched lines only) and the full file text for writing.
-func buildReplacedContent(name string) (string, string, error) {
+// and returns the display text (matched lines only), the full file text for writing,
+// the number of matched lines, and any error.
+func buildReplacedContent(name string) (string, string, int, error) {
 	content, err := os.ReadFile(name)
 	if err != nil {
-		return "", "", err
+		return "", "", 0, err
 	}
 	if strings.ContainsAny(string(content), "\x00\x01\x02\x03\x04\x05\x06\x07\x08") {
-		return "", "", errors.New("This is Binnary File.")
+		return "", "", 0, errors.New("This is Binnary File.")
 	}
 	targets := getReplaceTargets()
 	lines := strings.Split(string(content), "\n")
 	var display strings.Builder
 	var full strings.Builder
+	matchedCount := 0
 	for i, lineStr := range lines {
 		replaced, _ := regexps.ReplaceAll(lineStr, targets, *to, *Ff)
 		full.WriteString(replaced)
@@ -237,13 +239,14 @@ func buildReplacedContent(name string) (string, string, error) {
 			full.WriteByte('\n')
 		}
 		if matchLine(lineStr) {
+			matchedCount++
 			if *nf {
 				display.WriteString(strconv.Itoa(i+1) + " ")
 			}
 			display.WriteString(replaced + "\n")
 		}
 	}
-	return display.String(), full.String(), nil
+	return display.String(), full.String(), matchedCount, nil
 }
 
 func main() {
@@ -402,7 +405,7 @@ func run(ch chan string) {
 				ch <- ""
 			}
 		} else if *wf {
-			displayText, fullText, err := buildReplacedContent(fd.Path())
+			displayText, fullText, matchedCount, err := buildReplacedContent(fd.Path())
 			if err != nil {
 				if *ef {
 					fmt.Fprintln(os.Stderr, err)
@@ -418,8 +421,7 @@ func run(ch chan string) {
 				}
 				continue
 			}
-			ch <- fp
-			ch <- displayText
+			fmt.Printf("replaced %d lines from %s\n", matchedCount, fp)
 		} else {
 			filetext, err := readFile(fd.Path(), fp)
 			if err != nil && *ef {

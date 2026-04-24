@@ -22,16 +22,17 @@ import (
 
 var (
 	// flags
-	hf       = flag.Bool("h", false, "display help")
-	ff       = flag.Bool("f", false, "full path")
-	Ff       = flag.Bool("F", false, "plain text line search (no comma-split)")
-	df       = flag.Bool("d", false, "directory")
-	nf       = flag.Bool("n", false, "line number")
-	sf       = flag.Bool("s", false, "display file with stop")
-	op       = flag.Bool("o", false, "ask to open a file. (y/[Enter])")
-	ef       = flag.Bool("e", false, "hiding errors")
-	to       = flag.String("to", "", "replacement string for display (does not modify files)")
-	wf       = flag.Bool("w", false, "overwrite files with replacement result (requires -to)")
+	hf        = flag.Bool("h", false, "display help")
+	ff        = flag.Bool("f", false, "full path")
+	Ff        = flag.Bool("F", false, "plain text line search (no comma-split)")
+	df        = flag.Bool("d", false, "directory")
+	nf        = flag.Bool("n", false, "line number")
+	sf        = flag.Bool("s", false, "display file with stop")
+	op        = flag.Bool("o", false, "ask to open a file. (y/[Enter])")
+	ef        = flag.Bool("e", false, "hiding errors")
+	to        = flag.String("to", "", "replacement string for display (does not modify files)")
+	wf        = flag.Bool("w", false, "overwrite files with replacement result (requires -to or -remove-line)")
+	removeLine = flag.Bool("remove-line", false, "delete matched lines from file (requires -w)")
 	limit    = flag.Int("limit", 100, "line size limit")
 	cd       = flag.String("cd", ".", "change directory")
 	okjson   = flag.Bool("json", false, "printing json")
@@ -130,13 +131,26 @@ exit(e) -> end.
 		os.Exit(1)
 	}
 
-	if *wf && !toSet {
-		fmt.Fprintln(os.Stderr, "error: -w requires -to")
+	if *wf && !toSet && !*removeLine {
+		fmt.Fprintln(os.Stderr, "error: -w requires -to or -remove-line")
 		os.Exit(1)
 	}
 	if (toSet || *wf) && !okline {
 		fmt.Fprintln(os.Stderr, "error: -to and -w require a line search pattern (3rd argument)")
 		os.Exit(1)
+	}
+	if *removeLine && !*wf {
+		fmt.Fprintln(os.Stderr, "error: -remove-line requires -w")
+		os.Exit(1)
+	}
+	if *removeLine && !*Ff {
+		// パターン "." は全行にマッチするため危険
+		for _, reg := range line.OK {
+			if reg.String() == "." {
+				fmt.Fprintln(os.Stderr, "error: -remove-line does not allow pattern \".\" (matches all lines)")
+				os.Exit(1)
+			}
+		}
 	}
 }
 
@@ -247,6 +261,37 @@ func buildReplacedContent(name string) (string, string, int, error) {
 		}
 	}
 	return display.String(), full.String(), matchedCount, nil
+}
+
+// buildRemovedContent reads name and returns the file content with matched lines removed,
+// a display string of the removed lines, the count of removed lines, and any error.
+func buildRemovedContent(name string) (string, string, int, error) {
+	content, err := os.ReadFile(name)
+	if err != nil {
+		return "", "", 0, err
+	}
+	if strings.ContainsAny(string(content), "\x00\x01\x02\x03\x04\x05\x06\x07\x08") {
+		return "", "", 0, errors.New("This is Binnary File.")
+	}
+	lines := strings.Split(string(content), "\n")
+	var display strings.Builder
+	var full strings.Builder
+	removedCount := 0
+	for i, lineStr := range lines {
+		if matchLine(lineStr) {
+			removedCount++
+			if *nf {
+				display.WriteString(strconv.Itoa(i+1) + " ")
+			}
+			display.WriteString(lineStr + "\n")
+			continue
+		}
+		full.WriteString(lineStr)
+		if i < len(lines)-1 {
+			full.WriteByte('\n')
+		}
+	}
+	return display.String(), full.String(), removedCount, nil
 }
 
 func main() {
@@ -405,23 +450,44 @@ func run(ch chan string) {
 				ch <- ""
 			}
 		} else if *wf {
-			displayText, fullText, matchedCount, err := buildReplacedContent(fd.Path())
-			if err != nil {
-				if *ef {
-					fmt.Fprintln(os.Stderr, err)
+			if *removeLine {
+				displayText, fullText, removedCount, err := buildRemovedContent(fd.Path())
+				if err != nil {
+					if *ef {
+						fmt.Fprintln(os.Stderr, err)
+					}
+					continue
 				}
-				continue
-			}
-			if displayText == "" {
-				continue
-			}
-			if err := os.WriteFile(fd.Path(), []byte(fullText), fd.Info.Mode().Perm()); err != nil {
-				if *ef {
-					fmt.Fprintln(os.Stderr, err)
+				if removedCount == 0 {
+					continue
 				}
-				continue
+				if err := os.WriteFile(fd.Path(), []byte(fullText), fd.Info.Mode().Perm()); err != nil {
+					if *ef {
+						fmt.Fprintln(os.Stderr, err)
+					}
+					continue
+				}
+				_ = displayText
+				fmt.Printf("removed %d lines from %s\n", removedCount, fp)
+			} else {
+				displayText, fullText, matchedCount, err := buildReplacedContent(fd.Path())
+				if err != nil {
+					if *ef {
+						fmt.Fprintln(os.Stderr, err)
+					}
+					continue
+				}
+				if displayText == "" {
+					continue
+				}
+				if err := os.WriteFile(fd.Path(), []byte(fullText), fd.Info.Mode().Perm()); err != nil {
+					if *ef {
+						fmt.Fprintln(os.Stderr, err)
+					}
+					continue
+				}
+				fmt.Printf("replaced %d lines from %s\n", matchedCount, fp)
 			}
-			fmt.Printf("replaced %d lines from %s\n", matchedCount, fp)
 		} else {
 			filetext, err := readFile(fd.Path(), fp)
 			if err != nil && *ef {
